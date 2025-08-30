@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: clearfootprint
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 로컬 기본값 / 도커·서버에선 SPRING_DATASOURCE_URL 로 덮어쓰기
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/clearfootprint?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8}
+    username: ${SPRING_DATASOURCE_USERNAME:cfp}
+    password: ${SPRING_DATASOURCE_PASSWORD:cfp_pw}
+
+  jpa:
+    hibernate:
+      ddl-auto: update          # 초기 개발 편의용. 운영 전환 시 validate/Flyway 권장
+    open-in-view: false
+    show-sql: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+external:                      # 어댑터가 읽을 베이스 URL (환경변수로 덮어쓰기)
+  ai:
+    base-url: ${EXTERNAL_AI_BASE_URL:https://api.example-ai.com}
+  activity:
+    base-url: ${EXTERNAL_ACTIVITY_BASE_URL:https://api.example-activity.com}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  # 프로덕션에서 추가로 유용한 기본값 예시 (원하면 해제)
+  # mvc:
+  #   log-request-details: false
+  # jackson:
+  #   serialization:
+  #     write-dates-as-timestamps: false
+  # sql:
+  #   init:
+  #     mode: never

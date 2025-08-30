@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: cfp-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: clearfootprint
+      MYSQL_USER: cfp
+      MYSQL_PASSWORD: cfp_pw
+      MYSQL_ROOT_PASSWORD: root_pw
+      TZ: Asia/Seoul
+    command: ["--character-set-server=utf8mb4","--collation-server=utf8mb4_unicode_ci"]
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL","mysqladmin ping -h 127.0.0.1 -uroot -proot_pw || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ───── 개발 모드 (소스 마운트 + gradle로 bootRun) ─────
+  app-dev:
+    profiles: ["dev"]
+    image: gradle:8.10.2-jdk17
+    container_name: cfp-app-dev
+    working_dir: /app
+    command: gradle bootRun --no-daemon
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/clearfootprint?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: cfp
+      SPRING_DATASOURCE_PASSWORD: cfp_pw
+      EXTERNAL_AI_BASE_URL: https://api.example-ai.com
+      EXTERNAL_ACTIVITY_BASE_URL: https://api.example-activity.com
+      TZ: Asia/Seoul
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app            # ← 소스코드 마운트
+      - gradle_cache:/home/gradle/.gradle  # 의존성 캐시(속도↑)
+
+  # ───── 배포 모드 (Dockerfile로 빌드된 JAR 실행) ─────
+  app:
+    profiles: ["prod"]
+    build: .
+    image: clearfootprint:prod
+    container_name: cfp-app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/clearfootprint?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: cfp
+      SPRING_DATASOURCE_PASSWORD: cfp_pw
+      EXTERNAL_AI_BASE_URL: https://api.example-ai.com
+      EXTERNAL_ACTIVITY_BASE_URL: https://api.example-activity.com
+      TZ: Asia/Seoul
+    ports:
+      - "9090:8080"
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+volumes:
+  db_data:
+  gradle_cache:
