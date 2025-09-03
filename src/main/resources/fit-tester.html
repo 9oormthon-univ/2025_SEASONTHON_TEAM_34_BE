@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <title>맑은발자국 API 테스터 (KR 계수 반영)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        :root{--green:#2ecc71;--green2:#27ae60;--bg:#f7f7f8;--card:#ffffff}
+        *{box-sizing:border-box}
+        body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif;color:#222;background:var(--bg)}
+        main{max-width:820px;margin:24px auto;padding:0 16px}
+        h1{font-size:22px;margin:8px 0 16px}
+        h2{font-size:18px;margin:0 0 12px}
+        section{background:var(--card);padding:16px;margin:12px 0;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+        .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        label{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f0f2f4;padding:8px 10px;border-radius:10px}
+        input{width:140px;padding:6px 8px;border:1px solid #dfe3e6;border-radius:8px}
+        button{background:var(--green);color:#fff;border:0;border-radius:10px;padding:9px 14px;font-weight:600;cursor:pointer}
+        button:hover{filter:brightness(.96)}
+        small,#progressLabel{color:#555}
+        .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+        .chip{background:#eef7f1;border:1px solid #d8f1e3;color:#1e824c;padding:6px 10px;border-radius:999px;font-weight:600}
+        .bar{height:16px;background:#e8eaed;border-radius:999px;overflow:hidden;margin-top:12px}
+        .fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--green2));transition:width .35s ease}
+        .note{font-size:13px;line-height:1.5;color:#555}
+        code{background:#f4f6f8;padding:2px 6px;border-radius:6px}
+    </style>
+</head>
+<body>
+<main>
+    <h1>맑은발자국 API 테스터</h1>
+
+    <!-- 로그인 / 토큰 -->
+    <section id="auth">
+        <h2>1) Google 로그인 & Fit 권한</h2>
+        <div class="row">
+            <button id="signIn">Google Fit 연결</button>
+            <span id="who"></span>
+        </div>
+        <small>요청 권한: <code>fitness.activity.read</code>, <code>fitness.location.read</code></small>
+    </section>
+
+    <!-- 계산식 (KR 계수 기본값) -->
+    <section>
+        <h2>2) 질문 → CO₂ → 목표거리 계산 (KR 계수 반영)</h2>
+        <div class="grid">
+            <label>질문 수(Q) <input id="q" type="number" value="30" min="0"></label>
+            <label>질문당 전력(Wh) <input id="eq" type="number" value="2.9" step="0.1"></label>
+            <label>전력 배출계수(kg/kWh) <input id="efGrid" type="number" value="0.4594" step="0.0001"></label>
+            <label>차량 배출계수(g/km) <input id="efCar" type="number" value="125.2" step="0.1"></label>
+            <label>보건 가중치(×) <input id="healthMul" type="number" value="20" step="1" min="1"></label>
+            <label>1km당 걸음 수(≈) <input id="stepsPerKm" type="number" value="1300" step="10"></label>
+        </div>
+
+        <div class="kpis" id="calcOut"></div>
+        <div class="row" style="margin-top:6px"><button id="recalc">계산</button></div>
+
+        <div class="note" style="margin-top:8px">
+            기본식(직접 환산): <code>CO₂(g/질문) = Wh × kg/kWh</code> → <code>총CO₂(g) = Q × Wh × kg/kWh</code> →
+            <code>차량등가거리(km) = 총CO₂(g) ÷ 차량 g/km</code><br>
+            발표용 목표거리: <code>차량등가거리 × 보건 가중치(예: 20)</code> – 일상 권고 걷기량을 고려한 보정.
+        </div>
+    </section>
+
+    <!-- Google Fit 데이터 & 진행도 -->
+    <section>
+        <h2>3) 오늘의 걸음/거리 (Google Fit)</h2>
+        <div class="row"><button id="fetchFit">Fit에서 불러오기</button></div>
+        <div id="fitOut" style="margin-top:8px;">연결 필요</div>
+
+        <div class="bar"><div class="fill" id="progress" style="width:0%"></div></div>
+        <small id="progressLabel">목표 거리를 계산하거나 Fit 데이터를 불러오세요.</small>
+    </section>
+
+    <!-- 비교/설명 -->
+    <section>
+        <h2>참고</h2>
+        <div class="note">
+            • KR 전력 배출계수 기본값: <b>0.4594 kgCO₂/kWh</b><br>
+            • 질문당 2.9Wh 가정 시, <b>질문 1회 ≈ 1.332 g CO₂</b> (0.0029kWh × 0.4594)<br>
+            • 승용차 1 km ≈ <b>125.2 g CO₂</b> 가정<br>
+            • 목표거리(발표용) = <code>((Q×Wh×kg/kWh) ÷ (g/km)) × 보건 가중치</code>
+        </div>
+    </section>
+</main>
+
+<script>
+    /** ====== 설정 ====== **/
+    const CONFIG = {
+        CLIENT_ID: 'YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com', // ← 교체
+        SCOPES: 'https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.location.read openid email profile'
+    };
+
+    let accessToken = null;
+    let tokenClient = null;
+    let todayKm = 0;
+
+    /** 초기 로드 */
+    window.onload = () => {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CONFIG.CLIENT_ID,
+            scope: CONFIG.SCOPES,
+            callback: (resp) => {
+                if (resp.error) { alert(JSON.stringify(resp, null, 2)); return; }
+                accessToken = resp.access_token;
+                document.getElementById('who').textContent = '연결됨 ✅';
+            },
+        });
+
+        document.getElementById('signIn').onclick = () => tokenClient.requestAccessToken({prompt:'consent'});
+        document.getElementById('recalc').onclick = calc;
+        document.getElementById('fetchFit').onclick = fetchTodayFit;
+
+        calc(); // 기본 계산 1회
+    };
+
+    /** CO₂ → 목표거리/걸음 계산 */
+    function calc(){
+        const Q = +val('q');
+        const Eq = +val('eq');           // Wh/질문 (기본 2.9)
+        const EFgrid = +val('efGrid');   // kg/kWh (KR 0.4594)
+        const EFcar  = +val('efCar');    // g/km  (KR 125.2)
+        const Hmul   = +val('healthMul'); // 보건 가중치 (기본 20)
+        const stepsPerKm = +val('stepsPerKm');
+
+        const co2PerQ_g   = Eq * EFgrid;         // g/질문
+        const totalCO2_g  = Q * co2PerQ_g;       // g
+        const carKm       = EFcar>0 ? (totalCO2_g / EFcar) : 0;       // 직접 차량 등가거리
+        const targetKm    = carKm * (Hmul>0 ? Hmul : 1);              // 발표용 목표거리
+        const targetSteps = Math.round(targetKm * stepsPerKm);
+
+        $('#calcOut').innerHTML = `
+    <span class="chip">1회당 CO₂ ≈ <b>${co2PerQ_g.toFixed(3)} g</b></span>
+    <span class="chip">총 CO₂ ≈ <b>${totalCO2_g.toFixed(1)} g</b></span>
+    <span class="chip">차량등가거리 ≈ <b>${carKm.toFixed(3)} km</b></span>
+    <span class="chip">목표거리(×${Hmul}) ≈ <b>${targetKm.toFixed(3)} km</b></span>
+    <span class="chip">목표걸음 ≈ <b>${targetSteps.toLocaleString()} 보</b></span>
+  `;
+
+        updateProgress();
+    }
+
+    /** Google Fit에서 오늘 steps/distance 집계 */
+    async function fetchTodayFit(){
+        if(!accessToken){ alert('먼저 Google Fit 연결을 허용해 주세요.'); return; }
+
+        const now = new Date();
+        const end = now.getTime();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+        const body = {
+            aggregateBy: [
+                { dataTypeName: 'com.google.step_count.delta' },
+                { dataTypeName: 'com.google.distance.delta' }
+            ],
+            bucketByTime: { durationMillis: 24*60*60*1000 },
+            startTimeMillis: startOfDay,
+            endTimeMillis: end
+        };
+
+        const resp = await fetch('https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer '+accessToken, 'Content-Type':'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const data = await resp.json();
+        if(!resp.ok){ alert('Fit API 오류: ' + (data.error?.message || resp.status)); return; }
+
+        let steps = 0, meters = 0;
+        if(data.bucket && data.bucket.length){
+            const b = data.bucket[0];
+            // steps
+            for(const p of (b.dataset?.[0]?.point || [])){
+                steps += (p.value?.[0]?.intVal || 0);
+            }
+            // distance (m)
+            for(const p of (b.dataset?.[1]?.point || [])){
+                meters += (p.value?.[0]?.fpVal || 0);
+            }
+        }
+
+        const kmByDistance = meters/1000;
+        const kmBySteps = steps / (+val('stepsPerKm'));
+        todayKm = kmByDistance || kmBySteps;
+
+        $('#fitOut').innerHTML =
+            `오늘 걸음: <b>${steps.toLocaleString()} 보</b> · 거리: <b>${kmByDistance.toFixed(2)} km</b> (스텝환산 ${kmBySteps.toFixed(2)} km)`;
+
+        updateProgress();
+    }
+
+    /** 진행도 바 갱신: 오늘 걸은 거리 / 목표거리(보건 가중 포함) */
+    function updateProgress(){
+        const Q = +val('q');
+        const Eq = +val('eq');
+        const EFgrid = +val('efGrid');
+        const EFcar  = +val('efCar');
+        const Hmul   = +val('healthMul');
+
+        const co2PerQ_g  = Eq * EFgrid;
+        const totalCO2_g = Q * co2PerQ_g;
+        const carKm      = EFcar>0 ? (totalCO2_g / EFcar) : 0;
+        const targetKm   = carKm * (Hmul>0 ? Hmul : 1);
+
+        const done = Math.min(1, targetKm ? (todayKm/targetKm) : 0);
+        const pct  = Math.round(done*100);
+
+        $('#progress').style.width = (pct>0?pct:0)+'%';
+        $('#progressLabel').textContent =
+            targetKm ? `목표 ${targetKm.toFixed(3)} km 중 ${todayKm.toFixed(2)} km 달성 (${pct}%)`
+                : '목표 거리를 먼저 계산해 주세요.';
+    }
+
+    /** helpers */
+    function $(sel){ return document.querySelector(sel); }
+    function val(id){ return document.getElementById(id).value || 0; }
+</script>
+</body>
+</html>
