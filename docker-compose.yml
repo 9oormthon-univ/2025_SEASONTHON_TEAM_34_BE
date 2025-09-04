@@ -66,7 +66,7 @@ services:
       EXTERNAL_ACTIVITY_BASE_URL: https://api.example-activity.com
       TZ: Asia/Seoul
     ports:
-      - "9090:8080"
+      - "8080:8080"
     healthcheck:
       test: ["CMD-SHELL","wget -qO- http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
       interval: 30s
