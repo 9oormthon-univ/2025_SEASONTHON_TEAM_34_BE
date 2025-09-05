@@ -34,4 +34,4 @@ spring:
   config:
     activate:
       on-profile: prod
-    import: "application-secret.yml" # 이 부분 추가  
+    import: "application-secret.yml" # 이 부분 추가
