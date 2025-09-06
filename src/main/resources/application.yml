@@ -5,8 +5,8 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/clearfootprint?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=utf8}
-    username: ${SPRING_DATASOURCE_USERNAME:cfp}
-    password: ${SPRING_DATASOURCE_PASSWORD:cfp_pw}
+    username: 'root'
+    password: 'Juneon0830@'
 
   jpa:
     hibernate:

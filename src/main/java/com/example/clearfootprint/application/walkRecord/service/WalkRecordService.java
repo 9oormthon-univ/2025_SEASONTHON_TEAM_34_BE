@@ -3,6 +3,7 @@ package com.example.clearfootprint.application.walkRecord.service;
 import com.example.clearfootprint.domain.user.UserRepository;
 import com.example.clearfootprint.domain.walkRecord.WalkRecord;
 import com.example.clearfootprint.domain.walkRecord.WalkRecordRepository;
+import com.example.clearfootprint.presentation.walkRecord.dto.GetRankResponse;
 import com.example.clearfootprint.presentation.walkRecord.dto.GetTargetDisAndWalkDisResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,27 +67,33 @@ public class WalkRecordService {
     }
 
     @Transactional
-    public void updateWalk(Long userId, BigDecimal targetDistanceM, BigDecimal walkedDistanceM){
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+    public void updateWalk(Long userId, BigDecimal targetDistanceM, BigDecimal walkedDistanceM) {
+        var today = java.time.LocalDate.now();
+        var target = targetDistanceM != null ? targetDistanceM : java.math.BigDecimal.ZERO;
+        var walked = walkedDistanceM != null ? walkedDistanceM : java.math.BigDecimal.ZERO;
 
-        var record = walkRecordRepository.findByUserIdAndDate(userId, today)
-                .orElseGet(() -> {
-                    var wr = new WalkRecord();
-                    wr.setUser(userRepository.getReferenceById(userId));
-                    wr.setDate(today);
-                    wr.setTargetDistanceM(BigDecimal.ZERO);
-                    wr.setDistanceM(BigDecimal.ZERO);
-                    return wr;
-                });
+        walkRecordRepository.upsertByUserAndDate(userId, today, walked, target);
+    }
 
-        var t = (targetDistanceM);
-        var w = (walkedDistanceM);
-        if (t != null) record.setTargetDistanceM(t);
-        if (w != null) record.setDistanceM(w);
+    @Transactional(readOnly = true)
+    public GetRankResponse getWeeklyLeaderboard(Long userId) {
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(6); // 오늘 포함 7일
 
-        var saved = walkRecordRepository.save(record);
-        boolean achieved = saved.getDistanceM().compareTo(saved.getTargetDistanceM()) >= 0;
+        var top10Rows = walkRecordRepository.findWeeklyTop10(start, end);
+        var myRowOpt = walkRecordRepository.findMyWeeklyRank(userId, start, end);
 
+        var top10 = top10Rows.stream()
+                .map(r -> new GetRankResponse.LeaderboardEntry(
+                        r.getNickname(),
+                        r.getTotalDistanceM(),
+                        r.getRnk()
+                ))
+                .collect(Collectors.toList());
+
+        Integer myRank = myRowOpt.map(WalkRecordRepository.WeeklyRankRow::getRnk).orElse(null);
+
+        return new GetRankResponse(top10, myRank);
     }
 
 }

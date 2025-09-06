@@ -30,12 +30,12 @@ public class WalkRecord {
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_walk_record_user"))
     private User user;
 
-    @Column(nullable = false, precision = 10, scale = 3)
+    @Column(name = "distance_m", nullable = false, precision = 10, scale = 3)
     private BigDecimal distanceM;
 
-    @Column(nullable = false, precision = 10, scale = 3)
+    @Column(name = "target_distance_m", nullable = false, precision = 10, scale = 3)
     private BigDecimal targetDistanceM;
 
-    @Column(nullable = false)
+    @Column(name = "date", nullable = false)
     private LocalDate date;
 }
