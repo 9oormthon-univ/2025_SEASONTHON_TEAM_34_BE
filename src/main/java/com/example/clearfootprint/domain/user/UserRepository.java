@@ -1,4 +1,4 @@
-package com.example.clearfootprint.domain;
+package com.example.clearfootprint.domain.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

@@ -1,4 +1,4 @@
-package com.example.clearfootprint.domain;
+package com.example.clearfootprint.domain.user;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -22,6 +22,10 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private
+
+    @Column(nullable = true)
     private String picture;
 
 

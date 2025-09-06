@@ -1,7 +1,7 @@
 package com.example.clearfootprint.application.service;
 
-import com.example.clearfootprint.domain.User;
-import com.example.clearfootprint.domain.UserRepository;
+import com.example.clearfootprint.domain.user.User;
+import com.example.clearfootprint.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Transactional 추가
