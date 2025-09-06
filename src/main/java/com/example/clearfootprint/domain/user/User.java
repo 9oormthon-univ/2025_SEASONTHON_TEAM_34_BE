@@ -22,9 +22,6 @@ public class User {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private
-
     @Column(nullable = true)
     private String picture;
 
