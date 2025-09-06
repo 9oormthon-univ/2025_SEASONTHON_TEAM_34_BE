@@ -1,4 +1,4 @@
-package com.example.clearfootprint.interfaces.api;
+package com.example.clearfootprint.presentation.api;
 
 import com.example.clearfootprint.application.service.IntegrationSyncService;
 import jakarta.validation.constraints.NotBlank;
