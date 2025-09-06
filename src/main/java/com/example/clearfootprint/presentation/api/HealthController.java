@@ -1,4 +1,4 @@
-package com.example.clearfootprint.interfaces.api;
+package com.example.clearfootprint.presentation.api;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
