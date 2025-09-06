@@ -35,3 +35,25 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# IDE files
+.idea/
+.DS_Store
+
+# Gradle cache files
+.gradle/
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Docker ignore
+.dockerignore
+
+# Spring Boot related files
+target/
+*.jar
+*.war
+*.log
+*.class
+
+# Sensitive information
+application-secret.yml
